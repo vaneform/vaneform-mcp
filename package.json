@@ -15,9 +15,9 @@
   "homepage": "https://vaneform.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jiangqizheng/vaneform-mcp.git"
+    "url": "git+https://github.com/vaneform/vaneform-mcp.git"
   },
-  "bugs": "https://github.com/jiangqizheng/vaneform-mcp/issues",
+  "bugs": "https://github.com/vaneform/vaneform-mcp/issues",
   "license": "MIT",
   "author": "qizheng (https://vaneform.com)",
   "type": "module",

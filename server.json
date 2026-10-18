@@ -3,10 +3,10 @@
   "name": "io.github.jiangqizheng/vaneform-mcp",
   "title": "Vaneform",
   "description": "Free website traffic checker: monthly visits, traffic sources, top countries and domain compares.",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "websiteUrl": "https://vaneform.com/docs/api",
   "repository": {
-    "url": "https://github.com/jiangqizheng/vaneform-mcp",
+    "url": "https://github.com/vaneform/vaneform-mcp",
     "source": "github"
   },
   "remotes": [

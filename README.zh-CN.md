@@ -47,14 +47,14 @@ Cursor（`~/.cursor/mcp.json`）：
 Claude Desktop（本地代理，`claude_desktop_config.json`）：
 
 ```json
-{ "mcpServers": { "vaneform": { "command": "npx", "args": ["-y", "github:jiangqizheng/vaneform-mcp"], "env": { "VANEFORM_API_KEY": "vf_live_…" } } } }
+{ "mcpServers": { "vaneform": { "command": "npx", "args": ["-y", "github:vaneform/vaneform-mcp"], "env": { "VANEFORM_API_KEY": "vf_live_…" } } } }
 ```
 
 命令行：
 
 ```bash
 export VANEFORM_API_KEY=vf_live_…
-npx -p github:jiangqizheng/vaneform-mcp vaneform notion.so
+npx -p github:vaneform/vaneform-mcp vaneform notion.so
 ```
 
 ## 解读

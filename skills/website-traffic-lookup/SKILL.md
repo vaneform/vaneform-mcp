@@ -28,7 +28,7 @@ If the `vaneform` MCP server is connected (hosted `https://vaneform.com/mcp` or 
 | `compare_tld` `{q: "name", s: "com,ai,io"}` | One name across suffixes. | 1 credit per domain |
 | `lookup_keyword` `{q}` | US keyword brief (Pro only). | 60 credits |
 
-Without MCP, the CLI does the same: `npx -p github:jiangqizheng/vaneform-mcp vaneform example.com` (add `compare a.com b.com`, `tld name`, `--json`).
+Without MCP, the CLI does the same: `npx -p github:vaneform/vaneform-mcp vaneform example.com` (add `compare a.com b.com`, `tld name`, `--json`).
 
 ## How to read results
 
