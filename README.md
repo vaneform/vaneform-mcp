@@ -1,6 +1,6 @@
 # vaneform-mcp
 
-[![CI](https://github.com/jiangqizheng/vaneform-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/jiangqizheng/vaneform-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/vaneform/vaneform-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/vaneform/vaneform-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/jiangqizheng/vaneform-mcp)
 
@@ -87,14 +87,14 @@ The simplest Claude Desktop setup that passes your key is the local proxy. Edit 
   "mcpServers": {
     "vaneform": {
       "command": "npx",
-      "args": ["-y", "github:jiangqizheng/vaneform-mcp"],
+      "args": ["-y", "github:vaneform/vaneform-mcp"],
       "env": { "VANEFORM_API_KEY": "vf_live_…" }
     }
   }
 }
 ```
 
-The package isn't on npm yet, so `npx` installs it from GitHub. The first start takes a little longer because it builds once. If `npx` exits right away on an old system npm (Debian's packaged npm 9.2 does this with GitHub packages), run `npm install -g github:jiangqizheng/vaneform-mcp` and use `"command": "vaneform-mcp"` with no args.
+The package isn't on npm yet, so `npx` installs it from GitHub. The first start takes a little longer because it builds once. If `npx` exits right away on an old system npm (Debian's packaged npm 9.2 does this with GitHub packages), run `npm install -g github:vaneform/vaneform-mcp` and use `"command": "vaneform-mcp"` with no args.
 
 ### Codex
 
@@ -106,12 +106,12 @@ codex mcp add vaneform --url https://vaneform.com/mcp --bearer-token-env-var VAN
 ### Any other MCP client
 
 - Remote: URL `https://vaneform.com/mcp`, transport Streamable HTTP, header `Authorization: Bearer vf_live_…` (or `X-API-Key: vf_live_…`)
-- Local: command `npx -y github:jiangqizheng/vaneform-mcp`, env `VANEFORM_API_KEY`
+- Local: command `npx -y github:vaneform/vaneform-mcp`, env `VANEFORM_API_KEY`
 
 ## CLI
 
 ```bash
-npx -p github:jiangqizheng/vaneform-mcp vaneform --help
+npx -p github:vaneform/vaneform-mcp vaneform --help
 # or clone, then: npm install && npm link
 export VANEFORM_API_KEY=vf_live_…
 vaneform notion.so                       # traffic overview
@@ -156,7 +156,7 @@ Copy the skill so your assistant knows when to reach for traffic data and how to
 ```bash
 # Claude Code (user-wide)
 mkdir -p ~/.claude/skills/website-traffic-lookup
-curl -fsSL https://raw.githubusercontent.com/jiangqizheng/vaneform-mcp/main/skills/website-traffic-lookup/SKILL.md \
+curl -fsSL https://raw.githubusercontent.com/vaneform/vaneform-mcp/main/skills/website-traffic-lookup/SKILL.md \
   -o ~/.claude/skills/website-traffic-lookup/SKILL.md
 ```
 
