@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { compactNumber, formatCompare, formatDomain } from '../src/format.js'
+import { compactNumber, formatCompare, formatDomain, formatKeyword } from '../src/format.js'
 
 describe('format', () => {
   it('abbreviates large numbers', () => {
@@ -28,6 +28,7 @@ describe('format', () => {
       report_url: 'https://vaneform.com/e/abc',
     })
     expect(text).toContain('1.50M / month')
+    expect(text).toContain('2026-08')
     expect(text).toContain('-2.5% MoM')
     expect(text).toContain('United States 42.0%')
     expect(text).toMatch(/direct 60\.0% · search 30\.0%/)
@@ -48,5 +49,25 @@ describe('format', () => {
     })
     expect(text.split('\n')[1]).toMatch(/^a\.com\s+2\.00M/)
     expect(text.split('\n')[2]).toMatch(/^b\.com\s+missing/)
+  })
+
+  it('keeps unknown keyword fields blank and cites the source month', () => {
+    const text = formatKeyword({
+      keyword: 'website traffic',
+      status: 'ready',
+      market: { label: 'United States' },
+      search_volume_monthly: 12000,
+      as_of: '2026-08-31',
+    })
+    expect(text).toContain('12K / month')
+    expect(text).toContain('As of')
+    expect(text).toContain('2026-08-31')
+    expect(text).toContain('third-party estimates')
+    expect(text).not.toContain('Difficulty')
+  })
+
+  it('reports skipped compare rows instead of dropping them', () => {
+    const text = formatCompare({ items: [], skipped: [{ query: 'not a domain', reason: 'invalid_domain' }] })
+    expect(text).toContain('skipped not a domain: invalid_domain')
   })
 })

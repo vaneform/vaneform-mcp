@@ -1,24 +1,30 @@
 import { ATTRIBUTION, SIGN_UP_URL, VaneformClient, VaneformError, VERSION } from './client.js'
-import { formatAccount, formatCompare, formatDomain } from './format.js'
+import { formatAccount, formatCompare, formatDomain, formatKeyword } from './format.js'
 
 const HELP = `vaneform ${VERSION} — website traffic lookups from the terminal (${ATTRIBUTION})
 
 Usage
-  vaneform <domain>                     Traffic overview from the cached snapshot
-  vaneform compare <domain> <domain>…   Compare sites side by side (fetches missing traffic)
+  vaneform <domain> [--include families]
+                                        Cached snapshot. Omit --include for the server default.
+                                        Adding search can spend 200 Pro credits. baidu is cache-only.
+  vaneform compare <domain> <domain>…   Compare sites (1 credit per domain with data; Free max 3, Pro max 30)
   vaneform tld <name> [--suffixes com,ai,io]
                                         Compare one name across suffixes
-  vaneform account                      Plan and remaining credits (free)
+  vaneform keyword <query>              Pro US/EN keyword brief. A cache miss spends 60 credits.
+  vaneform account                      Plan and remaining credits (spends 0)
   vaneform tools                        List the hosted MCP tools
 
 Options
-  --json      Print the raw API JSON
-  --help      Show this help
-  --version   Show the version
+  --json                 Print the raw API JSON
+  --include <families>   Domain lookup only. Comma-separated: scale,registry,profile,popularity,baidu,search
+  --suffixes <list>      Suffixes for tld (default com,ai,io)
+  --help                 Show this help
+  --version              Show the npm package version (not the MCP Registry version)
 
 Environment
-  VANEFORM_API_KEY   API key (vf_live_…). Free accounts get 100 credits a month: ${SIGN_UP_URL}
-                     Lookups and compares cost 1 credit per domain. Without a key, the CLI prints a browser link.`
+  VANEFORM_API_KEY   API key from ${SIGN_UP_URL} (free accounts: 100 credits a month).
+                     The CLI never stores the key. Without a key, it prints a browser link.
+  VANEFORM_MCP_URL   Override the hosted MCP endpoint (default https://vaneform.com/mcp).`
 
 type Out = { stdout: (text: string) => void; stderr: (text: string) => void }
 
@@ -27,19 +33,35 @@ const defaultOut: Out = {
   stderr: (text) => process.stderr.write(`${text}\n`),
 }
 
-export async function runCli(argv: string[], client: VaneformClient = VaneformClient.fromEnv(), out: Out = defaultOut): Promise<number> {
-  const flags = new Set(argv.filter((arg) => arg.startsWith('--') && !arg.includes('=')))
-  const suffixArg = argv.find((arg) => arg.startsWith('--suffixes='))?.slice('--suffixes='.length)
+const VALUE_FLAGS = ['--suffixes', '--include']
+
+function parseArgs(argv: string[]) {
+  const flags = new Set<string>()
+  const values = new Map<string, string>()
   const positional: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string
-    if (arg === '--suffixes') {
-      i++
+    if (!arg.startsWith('--')) {
+      positional.push(arg)
       continue
     }
-    if (!arg.startsWith('--')) positional.push(arg)
+    const eq = arg.indexOf('=')
+    const name = eq === -1 ? arg : arg.slice(0, eq)
+    if (VALUE_FLAGS.includes(name)) {
+      const value = eq === -1 ? argv[i + 1] : arg.slice(eq + 1)
+      if (eq === -1 && value && !value.startsWith('--')) i++
+      if (value && !value.startsWith('--')) values.set(name, value)
+      continue
+    }
+    if (eq === -1) flags.add(name)
   }
-  const suffixes = suffixArg ?? (argv.includes('--suffixes') ? argv[argv.indexOf('--suffixes') + 1] : undefined)
+  return { flags, values, positional }
+}
+
+export async function runCli(argv: string[], client: VaneformClient = VaneformClient.fromEnv(), out: Out = defaultOut): Promise<number> {
+  const { flags, values, positional } = parseArgs(argv)
+  const suffixes = values.get('--suffixes')
+  const include = values.get('--include')
   const json = flags.has('--json')
 
   if (flags.has('--version')) {
@@ -86,12 +108,22 @@ export async function runCli(argv: string[], client: VaneformClient = VaneformCl
       out.stdout(json ? JSON.stringify(body, null, 2) : formatCompare(body))
       return 0
     }
+    if (command === 'keyword') {
+      const q = rest.join(' ').trim()
+      if (!q) {
+        out.stderr('Usage: vaneform keyword <query>  (Pro; a cache miss spends 60 credits)')
+        return 1
+      }
+      const body = await client.callJson('lookup_keyword', { q })
+      out.stdout(json ? JSON.stringify(body, null, 2) : formatKeyword(body))
+      return 0
+    }
     const domain = command === 'lookup' ? rest[0] : command
     if (!domain) {
       out.stderr('Usage: vaneform <domain>')
       return 1
     }
-    const body = await client.callJson('lookup_domain', { domain })
+    const body = await client.callJson('lookup_domain', include ? { domain, include } : { domain })
     out.stdout(json ? JSON.stringify(body, null, 2) : formatDomain(body))
     return 0
   } catch (error) {

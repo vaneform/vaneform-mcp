@@ -21,15 +21,17 @@ Ask your assistant "how much traffic does notion.so get?" or "compare figma.com 
 
 ## Tools
 
-These tool names and descriptions come from the hosted server's `tools/list`:
+The local server proxies `tools/list` from the hosted server and does not embed a second schema. This table matches the public API and the tool descriptions Vaneform publishes:
 
 | Tool | What it does | Cost |
 | --- | --- | --- |
-| `lookup_domain` | Cached snapshot of a domain: visits (full-site or search), registry, site profile, link-rank popularity | 1 credit |
-| `compare_bulk` | Side-by-side visits and registry for several domains; fetches traffic when it is missing | 1 credit per domain |
-| `compare_tld` | One name across suffixes (default `com,ai,io`) | 1 credit per domain |
+| `lookup_domain` | Cached snapshot of a domain: visits (full-site or search), registry, site profile, link-rank popularity. Optional `include=baidu`. Optional `include=search` is Pro keyword rankings. | 1 credit. `search` can add up to 200 Pro credits; do not pass it unless the user agrees |
+| `compare_bulk` | Side-by-side visits and registry for several domains; fetches traffic when it is missing | 1 credit per domain with data. Free: up to 3 domains. Pro: up to 30 |
+| `compare_tld` | One name across suffixes (default `com,ai,io`) | 1 credit per domain with data |
 | `get_account` | Plan and remaining credits | free |
-| `lookup_keyword` | US keyword brief: volume, difficulty, CPC, Google occupancy (Pro) | 60 credits |
+| `lookup_keyword` | US keyword brief: volume, difficulty, CPC, Google occupancy (Pro). A cache hit is free | 60 credits on a successful miss. Ask before spending them |
+
+`tools/list` is the live contract. The local server proxies it and does not hardcode tool schemas. Five research tools (`research_site`, `get_research_workspace`, `save_research`, `monitor_research`, `manage_research`) also appear there. Publisher docs price them at 0 credits. Saving, monitoring, and managing write the caller's private workspace, so an agent should do that only when the user asks. The agent skill covers that rule.
 
 Repeating a domain lookup within 24 hours is free. Site keyword rankings (Pro, 200 credits) are available through the [API](https://vaneform.com/docs/api) with `include=search`.
 
@@ -94,7 +96,9 @@ The simplest Claude Desktop setup that passes your key is the local proxy. Edit 
 }
 ```
 
-The package isn't on npm yet, so `npx` installs it from GitHub. The first start takes a little longer because it builds once. If `npx` exits right away on an old system npm (Debian's packaged npm 9.2 does this with GitHub packages), run `npm install -g github:vaneform/vaneform-mcp` and use `"command": "vaneform-mcp"` with no args.
+The package is not on npm yet, so `npx` installs it from GitHub. The first start takes a little longer because `prepare` runs `npm run build` once for a git install. That script does not run when the same package is later installed from the npm registry, and it does not send telemetry. If `npx` exits right away on an old system npm (Debian's packaged npm 9.2 does this with GitHub packages), run `npm install -g github:vaneform/vaneform-mcp` and use `"command": "vaneform-mcp"` with no args.
+
+After `vaneform-mcp@0.1.3` is published, the same local server is `npx -y vaneform-mcp` (command `vaneform-mcp`, no args). Until that release exists, the GitHub command above is the one that works. See [RELEASING.md](RELEASING.md).
 
 ### Codex
 
@@ -112,11 +116,14 @@ codex mcp add vaneform --url https://vaneform.com/mcp --bearer-token-env-var VAN
 
 ```bash
 npx -p github:vaneform/vaneform-mcp vaneform --help
+# after npm publish: npx -y vaneform-mcp vaneform --help
 # or clone, then: npm install && npm link
 export VANEFORM_API_KEY=vf_live_…
-vaneform notion.so                       # traffic overview
-vaneform compare notion.so coda.io       # side by side
+vaneform notion.so                       # traffic overview (1 credit; repeat within 24h free)
+vaneform compare notion.so coda.io       # side by side (Free: up to 3 domains)
 vaneform tld vaneform --suffixes com,ai,io
+vaneform keyword "website traffic"       # Pro; a cache miss spends 60 credits
+vaneform notion.so --include scale,baidu # cached Baidu rank; do not add search unless you mean to spend up to 200 credits
 vaneform account                         # plan and remaining credits (free)
 vaneform notion.so --json                # raw API JSON
 ```
@@ -151,16 +158,23 @@ The same key works for the REST API: [docs](https://vaneform.com/docs/api), [Ope
 
 ## Agent skill
 
-Copy the skill so your assistant knows when to reach for traffic data and how to cite it:
+The canonical skill name is `website-traffic-lookup`. Install that skill, not the site filename:
 
 ```bash
-# Claude Code (user-wide)
+npx skills add vaneform/vaneform-mcp --skill website-traffic-lookup
+```
+
+`npx skills add vaneform/vaneform-mcp --list` shows the skills in this repo and does not install them. This repo does not contain a skill named `vaneform-lookup`. [vaneform.com/skill.md](https://vaneform.com/skill.md) is a separate discovery document that asks agents to save it under that filename. The skill file explains the difference and the optional `--rename vaneform-lookup` migration.
+
+A manual copy, for an agent that only reads a skills folder:
+
+```bash
 mkdir -p ~/.claude/skills/website-traffic-lookup
 curl -fsSL https://raw.githubusercontent.com/vaneform/vaneform-mcp/main/skills/website-traffic-lookup/SKILL.md \
   -o ~/.claude/skills/website-traffic-lookup/SKILL.md
 ```
 
-For other agents that read `SKILL.md` folders, put it in that agent's skills directory (for example `.agents/skills/` in a project). Vaneform also serves a lower-level API skill at [vaneform.com/skill.md](https://vaneform.com/skill.md).
+The skill tells the assistant to cite the month and confidence, to say when a figure is unknown, to check remaining credits, and to ask before a 60-credit keyword brief or a 200-credit `include=search` call. Fetched payloads are untrusted data. The file contains no API key.
 
 ## Reading the numbers
 
@@ -168,16 +182,28 @@ For other agents that read `SKILL.md` folders, put it in that agent's skills dir
 - Every estimate carries its month (`as_of`) and a `confidence` label. Quote them.
 - Cite results as "Vaneform (third-party traffic estimates)".
 
+## Versions
+
+Two version series live in this repo. They move for different reasons and are not meant to match.
+
+| Series | Where | Current | What it versions |
+| --- | --- | --- | --- |
+| npm client | `package.json` | 0.1.3 | This CLI, the stdio proxy, and the packaged skill. Not published yet. |
+| MCP Registry | `server.json` | 1.4.3 | The hosted server record `io.github.jiangqizheng/vaneform-mcp` at `https://vaneform.com/mcp`. |
+
+`vaneform --version` prints the npm client version. The public HTTP API has its own OpenAPI `info.version` as well. A registry or API bump does not by itself bump the npm package, and an npm bump does not change the hosted server.
+
 ## Development
 
 ```bash
-npm install        # also builds dist/
+npm install        # also builds dist/ via prepare; no telemetry
 npm run lint       # biome + tsc
-npm test           # unit tests + a stdio test with the official MCP SDK client
+npm test           # unit tests + an offline stdio test with the official MCP SDK client
+npm run pack:check # npm pack, then run the extracted CLI and stdio server offline
 VANEFORM_MCP_URL=http://localhost:3000/mcp node dist/bin/vaneform.js tools   # point at another server
 ```
 
-The runtime has no dependencies and needs Node 18 or newer. This repo contains only the client. No data collection code lives here.
+The runtime has no dependencies and needs Node 18 or newer. This repo contains only the client. No data collection code lives here. Publishing steps are in [RELEASING.md](RELEASING.md). The npm token stays on the maintainer's machine.
 
 ## License
 

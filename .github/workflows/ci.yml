@@ -24,6 +24,9 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Pack and smoke the npm tarball
+        if: matrix.node == '20'
+        run: npm run pack:check
 
   node18-runtime:
     # The published package supports Node 18; the dev toolchain needs Node 20+.
@@ -45,3 +48,5 @@ jobs:
           node dist/bin/vaneform.js --help
           printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
             | node dist/bin/vaneform-mcp.js | grep -q '"name":"vaneform"'
+      - name: Pack and smoke the npm tarball on Node 18
+        run: npm run pack:check

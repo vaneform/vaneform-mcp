@@ -1,6 +1,6 @@
 {
   "name": "vaneform-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP server, CLI and agent skill for Vaneform website traffic lookups (third-party estimates) and domain compares.",
   "keywords": [
     "mcp",
@@ -19,6 +19,9 @@
   },
   "bugs": "https://github.com/vaneform/vaneform-mcp/issues",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "qizheng (https://vaneform.com)",
   "type": "module",
   "main": "./dist/index.js",
@@ -49,7 +52,9 @@
     "lint": "biome check . && tsc --noEmit",
     "format": "biome check --write .",
     "test": "vitest run",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "pack:check": "node scripts/pack-smoke.mjs",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

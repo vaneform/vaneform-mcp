@@ -2,12 +2,26 @@
  * Small client for the hosted Vaneform MCP endpoint (https://vaneform.com/mcp).
  * The CLI and the stdio server share it, so both see the same tools and errors.
  */
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const VANEFORM_ORIGIN = 'https://vaneform.com'
 export const DEFAULT_MCP_URL = `${VANEFORM_ORIGIN}/mcp`
 export const REMOTE_PROTOCOL_VERSION = '2025-03-26'
 export const ATTRIBUTION = 'Vaneform (third-party traffic estimates)'
-export const VERSION = '0.1.2'
+
+function packageVersion(): string {
+  const path = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json')
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
+  if (typeof parsed.version !== 'string' || parsed.version.length === 0) {
+    throw new Error(`Missing version in ${path}`)
+  }
+  return parsed.version
+}
+
+/** npm package version. Independent of the MCP Registry server.json version. */
+export const VERSION = packageVersion()
 
 export type ToolDefinition = {
   name: string

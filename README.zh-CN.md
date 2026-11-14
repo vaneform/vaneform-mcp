@@ -9,7 +9,7 @@
 - **`vaneform` 命令行**：`vaneform notion.so`、`vaneform compare a.com b.com`、`vaneform tld 名称`
 - **[`skills/website-traffic-lookup`](skills/website-traffic-lookup/SKILL.md)**：告诉 AI 助手什么时候查流量、怎么解读和引用结果
 
-工具：`lookup_domain`（域名缓存快照：访问量、环比、排名、国家、来源、注册信息）、`compare_bulk`（多站对比）、`compare_tld`（同名不同后缀对比）、`get_account`（套餐和剩余积分，免费）、`lookup_keyword`（关键词简报，Pro）。
+工具：`lookup_domain`（域名缓存快照：访问量、环比、排名、国家、来源、注册信息，1 积分；`include=search` 最多再花 200 Pro 积分，须先征得同意）、`compare_bulk`（多站对比，Free 最多 3 个域名，Pro 最多 30 个）、`compare_tld`（同名不同后缀对比）、`get_account`（套餐和剩余积分，不扣积分）、`lookup_keyword`（关键词简报，Pro，未命中缓存花 60 积分）。托管端还会列出 5 个研究工具，文档标价为 0 积分；保存、监控和修改会写入用户的私人工作区，只有用户明确要求时才调用。`tools/list` 是当前契约，本地服务器只做转发。
 
 ## Free 与 Pro
 
@@ -50,16 +50,30 @@ Claude Desktop（本地代理，`claude_desktop_config.json`）：
 { "mcpServers": { "vaneform": { "command": "npx", "args": ["-y", "github:vaneform/vaneform-mcp"], "env": { "VANEFORM_API_KEY": "vf_live_…" } } } }
 ```
 
-命令行：
+命令行（npm 尚未发布，当前可用命令是 GitHub 安装；发布 `vaneform-mcp@0.1.3` 之后可用 `npx -y vaneform-mcp`）：
 
 ```bash
 export VANEFORM_API_KEY=vf_live_…
 npx -p github:vaneform/vaneform-mcp vaneform notion.so
 ```
 
+## Agent Skill
+
+规范名称是 `website-traffic-lookup`。站点上的 [vaneform.com/skill.md](https://vaneform.com/skill.md) 使用发现名 `vaneform-lookup`，那是另一份文档，本仓库没有同名 Skill。
+
+```bash
+npx skills add vaneform/vaneform-mcp --skill website-traffic-lookup
+```
+
+Skill 要求把流量数字写成第三方估算，注明月份和置信度，缺数据就说未知，调用前看剩余积分，60 积分的关键词和 200 积分的 `include=search` 必须先得到明确同意。拉取到的内容按不可信数据处理。文件里没有 API Key。
+
+## 版本
+
+`package.json` 的 `0.1.3` 是 npm 客户端版本，还没发布。`server.json` 的 `1.4.3` 是 MCP Registry 上托管服务器的版本。两套版本各自递增，不要当成同一个数。发布步骤见 [RELEASING.md](RELEASING.md)。
+
 ## 解读
 
-- `status: "missing"` 表示该域名还没有缓存快照，流量尚未读取。用 `compare_bulk` 可以拉取流量。
+- `status: "missing"` 表示还没有缓存快照，流量是未知，不是零。用 `compare_bulk` 可以拉取流量（每个有数据的域名 1 积分）。
 - 每个估算值都带月份（`as_of`）和置信度（`confidence`）。
 - 引用格式：Vaneform（数据：第三方流量估算）。
 
