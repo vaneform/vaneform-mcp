@@ -28,8 +28,11 @@ function visitsLine(scale: Obj | undefined): string | undefined {
   const parts = [`${compactNumber(visits)} / month`]
   const mom = num(scale?.visits_mom_change_pct)
   if (mom != null) parts.push(`${mom >= 0 ? '+' : ''}${mom.toFixed(1)}% MoM`)
+  const asOf = str(scale?.as_of)
+  const month = str(scale?.month)
   const meta = [
-    str(scale?.month),
+    month,
+    asOf && asOf !== month ? `as of ${asOf}` : undefined,
     str(scale?.estimate) && `${scale?.estimate} estimate`,
     str(scale?.confidence) && `confidence ${scale?.confidence}`,
   ]
@@ -113,7 +116,7 @@ export function formatCompare(payload: unknown): string {
       visits != null ? compactNumber(visits) : (str(scale?.status) ?? '-'),
       mom != null ? `${mom >= 0 ? '+' : ''}${mom.toFixed(1)}%` : '-',
       rank != null ? `#${rank.toLocaleString('en-US')}` : '-',
-      str(scale?.month) ?? '-',
+      str(scale?.month) ?? str(scale?.as_of)?.slice(0, 7) ?? '-',
       str(asObj(item.registry)?.created_at)?.slice(0, 10) ?? '-',
     ]
   })
@@ -123,7 +126,33 @@ export function formatCompare(payload: unknown): string {
       .map((cell, i) => cell.padEnd(widths[i] ?? 0))
       .join('  ')
       .trimEnd()
-  return [render(header), ...rows.map(render), `Data: ${ATTRIBUTION}`].join('\n')
+  const skipped = Array.isArray(body.skipped) ? (body.skipped as Obj[]) : []
+  const skipLines = skipped.flatMap((item) => {
+    const query = str(item.query)
+    const reason = str(item.reason)
+    return query && reason ? [`skipped ${query}: ${reason}`] : []
+  })
+  return [render(header), ...rows.map(render), ...skipLines, `Data: ${ATTRIBUTION}`].join('\n')
+}
+
+export function formatKeyword(payload: unknown): string {
+  const body = asObj(payload) ?? {}
+  const market = asObj(body.market)
+  const volume = num(body.search_volume_monthly)
+  const difficulty = num(body.keyword_difficulty)
+  const cpc = num(body.cpc_usd)
+  const lines = [
+    `${str(body.keyword) ?? '?'}  [${str(body.status) ?? 'unknown'}]`,
+    row('Market', str(market?.label) ?? str(market?.id)),
+    row('Volume', volume != null ? `${compactNumber(volume)} / month` : undefined),
+    row('Difficulty', difficulty != null ? String(difficulty) : undefined),
+    row('CPC', cpc != null ? `$${cpc}` : undefined),
+    row('Intent', str(body.search_intent)),
+    row('As of', str(body.as_of)),
+    'Keyword figures are third-party estimates, not measured search-console data.',
+    `Data: ${ATTRIBUTION}`,
+  ]
+  return lines.filter((line): line is string => line !== null).join('\n')
 }
 
 export function formatAccount(payload: unknown): string {
