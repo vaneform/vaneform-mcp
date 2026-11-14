@@ -33,7 +33,7 @@ The local server proxies `tools/list` from the hosted server and does not embed 
 
 `tools/list` is the live contract. The local server proxies it and does not hardcode tool schemas. Five research tools (`research_site`, `get_research_workspace`, `save_research`, `monitor_research`, `manage_research`) also appear there. Publisher docs price them at 0 credits. Saving, monitoring, and managing write the caller's private workspace, so an agent should do that only when the user asks. The agent skill covers that rule.
 
-Repeating a domain lookup within 24 hours is free. Site keyword rankings (Pro, 200 credits) are available through the [API](https://vaneform.com/docs/api) with `include=search`.
+Repeating a domain lookup within 24 hours is free. Site keyword rankings (Pro, up to 200 credits) are available through the [API](https://vaneform.com/docs/api) with `include=search`; a repeat inside 24 hours uses that receipt. A keyword brief whose status is `empty` spends 0.
 
 ## Free vs Pro
 
@@ -98,7 +98,7 @@ The simplest Claude Desktop setup that passes your key is the local proxy. Edit 
 
 The package is not on npm yet, so `npx` installs it from GitHub. The first start takes a little longer because `prepare` runs `npm run build` once for a git install. That script does not run when the same package is later installed from the npm registry, and it does not send telemetry. If `npx` exits right away on an old system npm (Debian's packaged npm 9.2 does this with GitHub packages), run `npm install -g github:vaneform/vaneform-mcp` and use `"command": "vaneform-mcp"` with no args.
 
-After `vaneform-mcp@0.1.3` is published, the same local server is `npx -y vaneform-mcp` (command `vaneform-mcp`, no args). Until that release exists, the GitHub command above is the one that works. See [RELEASING.md](RELEASING.md).
+After `vaneform-mcp@0.1.3` is published, the stdio server is `npx -y vaneform-mcp` or `npx -y vaneform-mcp@0.1.3` (the bin with the same name as the package, no further arguments). Until that release exists, the GitHub command above is the one that works. See [RELEASING.md](RELEASING.md).
 
 ### Codex
 
@@ -114,9 +114,14 @@ codex mcp add vaneform --url https://vaneform.com/mcp --bearer-token-env-var VAN
 
 ## CLI
 
+The package has two bins. npx runs the one named `vaneform-mcp`, the stdio server. Words after that package name are arguments to the server, which does not parse them as a CLI. Select the `vaneform` bin with `--package`.
+
 ```bash
 npx -p github:vaneform/vaneform-mcp vaneform --help
-# after npm publish: npx -y vaneform-mcp vaneform --help
+# after npm publish:
+npx -y --package=vaneform-mcp@0.1.3 vaneform --version
+npx -y --package=vaneform-mcp@0.1.3 vaneform --help
+npm exec -y --package=vaneform-mcp@0.1.3 -- vaneform --version
 # or clone, then: npm install && npm link
 export VANEFORM_API_KEY=vf_live_…
 vaneform notion.so                       # traffic overview (1 credit; repeat within 24h free)
@@ -164,7 +169,7 @@ The canonical skill name is `website-traffic-lookup`. Install that skill, not th
 npx skills add vaneform/vaneform-mcp --skill website-traffic-lookup
 ```
 
-`npx skills add vaneform/vaneform-mcp --list` shows the skills in this repo and does not install them. This repo does not contain a skill named `vaneform-lookup`. [vaneform.com/skill.md](https://vaneform.com/skill.md) is a separate discovery document that asks agents to save it under that filename. The skill file explains the difference and the optional `--rename vaneform-lookup` migration.
+`npx skills add vaneform/vaneform-mcp --list` shows the skills in this repo and does not install them. This repo does not contain a skill named `vaneform-lookup`. [vaneform.com/skill.md](https://vaneform.com/skill.md) is a separate discovery document that asks agents to save it under that filename. Install `website-traffic-lookup`. Copying `SKILL.md` by hand is the way to place that same file in another folder; leave its `name` unchanged.
 
 A manual copy, for an agent that only reads a skills folder:
 

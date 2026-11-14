@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,8 +9,45 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const registry = JSON.parse(readFileSync(join(root, 'server.json'), 'utf8'))
 
 function fail(message) {
-  process.stderr.write(`${message}\n`)
-  process.exit(1)
+  throw new Error(message)
+}
+
+function runBounded(command, args, { timeoutMs, env, cwd, closeStdin, stopWhen }) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    let settled = false
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve({ ...result, stdout, stderr })
+    }
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      finish({ timedOut: true, stopped: false, status: null })
+    }, timeoutMs)
+    const note = () => {
+      if (stopWhen && stopWhen(stdout, stderr)) {
+        child.kill('SIGKILL')
+        finish({ timedOut: false, stopped: true, status: null })
+      }
+    }
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+      note()
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+      note()
+    })
+    if (closeStdin) child.stdin.end()
+    child.on('error', (error) => finish({ timedOut: false, stopped: false, status: 1, error }))
+    child.on('exit', (status) => finish({ timedOut: false, stopped: false, status }))
+  })
 }
 
 if (pkg.name !== 'vaneform-mcp') fail(`unexpected package name: ${pkg.name}`)
@@ -81,9 +118,13 @@ try {
     return found
   }
   const secret = /vf_live_[A-Za-z0-9]{8,}|BEGIN [A-Z ]*PRIVATE KEY|NPM_TOKEN|_authToken/u
+  const badPackageNpx = /npx\s+(?:-[^\s]+\s+)*vaneform-mcp(?:@\S+)?\s+vaneform\b/u
   for (const file of walk(join(dir, 'package'))) {
     const text = readFileSync(file, 'utf8')
     if (secret.test(text)) fail(`possible secret in ${file}`)
+    if (file.endsWith('.md') && (text.includes('--rename') || badPackageNpx.test(text))) {
+      fail(`packed doc has a command that does not work: ${file}`)
+    }
   }
   for (const name of ['vaneform.js', 'vaneform-mcp.js']) {
     const text = readFileSync(join(dir, 'package/dist/bin', name), 'utf8')
@@ -157,6 +198,64 @@ try {
     if (!proxy.stdout.includes('"name":"vaneform"')) fail('installed vaneform-mcp bin did not answer initialize')
   } finally {
     rmSync(app, { recursive: true, force: true })
+  }
+
+  const execHome = mkdtempSync(join(tmpdir(), 'vaneform-npx-'))
+  const execEnv = {
+    ...cleanEnv,
+    HOME: execHome,
+    npm_config_cache: join(execHome, 'npm-cache'),
+    npm_config_update_notifier: 'false',
+    NO_UPDATE_NOTIFIER: '1',
+  }
+  try {
+    const cliVersion = await runBounded(
+      'npm',
+      ['exec', '-y', '--offline', '--ignore-scripts', `--package=${tarball}`, '--', 'vaneform', '--version'],
+      { timeoutMs: 20000, env: execEnv, cwd: execHome, closeStdin: true },
+    )
+    if (cliVersion.timedOut || cliVersion.status !== 0 || cliVersion.stdout.trim() !== pkg.version) {
+      fail(`npm exec CLI --version failed (${cliVersion.status}, timeout ${cliVersion.timedOut})\n${cliVersion.stderr}`)
+    }
+    const cliHelp = await runBounded(
+      'npm',
+      ['exec', '-y', '--offline', '--ignore-scripts', `--package=${tarball}`, '--', 'vaneform', '--help'],
+      { timeoutMs: 20000, env: execEnv, cwd: execHome, closeStdin: true },
+    )
+    if (cliHelp.timedOut || cliHelp.status !== 0 || !cliHelp.stdout.includes('vaneform compare')) {
+      fail(`npm exec CLI --help failed (${cliHelp.status}, timeout ${cliHelp.timedOut})`)
+    }
+    const npxCli = await runBounded('npx', ['-y', '--offline', '--ignore-scripts', `--package=${tarball}`, 'vaneform', '--version'], {
+      timeoutMs: 20000,
+      env: execEnv,
+      cwd: execHome,
+      closeStdin: true,
+    })
+    if (npxCli.timedOut || npxCli.status !== 0 || npxCli.stdout.trim() !== pkg.version) {
+      fail(`npx --package CLI --version failed (${npxCli.status}, timeout ${npxCli.timedOut})\n${npxCli.stderr}`)
+    }
+    writeFileSync(join(execHome, 'package.json'), '{"private":true}\n')
+    const namedInstall = spawnSync(
+      'npm',
+      ['install', '--omit=dev', '--ignore-scripts', '--no-fund', '--no-audit', '--offline', tarball],
+      { cwd: execHome, encoding: 'utf8', env: execEnv },
+    )
+    if (namedInstall.status !== 0) fail(`install for the package-name npx check failed\n${namedInstall.stderr}`)
+    const stdioByName = await runBounded('npx', ['-y', '--offline', '--ignore-scripts', 'vaneform-mcp', 'vaneform', '--version'], {
+      timeoutMs: 20000,
+      env: execEnv,
+      cwd: execHome,
+      closeStdin: false,
+      stopWhen: (_stdout, stderr) => stderr.includes('vaneform-mcp:'),
+    })
+    if (stdioByName.stdout.includes(pkg.version) || stdioByName.stdout.includes('vaneform compare')) {
+      fail(`npx of the package name executed the CLI\n${stdioByName.stdout}`)
+    }
+    if (!stdioByName.stopped && !stdioByName.stderr.includes('vaneform-mcp:')) {
+      fail(`package-name npx did not start the stdio bin (timeout ${stdioByName.timedOut}, exit ${stdioByName.status})\n${stdioByName.stderr}`)
+    }
+  } finally {
+    rmSync(execHome, { recursive: true, force: true })
   }
   process.stdout.write(`pack smoke ok: ${info.filename} (${info.size} bytes, ${files.length} files)\n`)
 } finally {

@@ -17,7 +17,7 @@ Do not set them to the same number. The public OpenAPI `info.version` is a third
 
 - Package name in `package.json`: `vaneform-mcp` (unscoped, `publishConfig.access` `public`).
 - Runtime dependencies: none. Node `>=18`.
-- Bins: `vaneform` and `vaneform-mcp`, with a `#!/usr/bin/env node` shebang.
+- Bins: `vaneform` (CLI) and `vaneform-mcp` (stdio), each with a `#!/usr/bin/env node` shebang. npx runs the bin that matches the package name. That is the stdio server. The CLI needs `--package` so npx executes `vaneform`.
 - `prepare` is `npm run build`. npm runs it for a local install, a git install, and before `npm pack` / `npm publish`. npm does not run it when a user installs the registry tarball. It compiles TypeScript and does not open a network connection or send telemetry.
 - There is no `preinstall`, `install`, or `postinstall`.
 - `prepublishOnly` runs `npm run lint && npm test` on the maintainer's `npm publish`. It does not run for people who install the package.
@@ -40,6 +40,8 @@ npm pack --dry-run
 - `vaneform --help` works
 - `vaneform github.com` with no key exits 2 and prints a browser link, against an endpoint that refuses connections
 - `vaneform-mcp` answers MCP `initialize`
+- `npm exec -y --offline --package=<tarball> -- vaneform --version` and `npx -y --offline --package=<tarball> vaneform --version` print `0.1.3` and exit
+- After that tarball is installed, npx of the package name starts the stdio bin. The smoke test leaves stdin open, stops the process, and checks that the CLI version was not printed
 
 Open the tarball listing and confirm it contains `dist/`, `skills/website-traffic-lookup/SKILL.md`, both READMEs, and `LICENSE`. It must not contain `.env`, tests, `src/`, tokens, or private keys.
 
@@ -58,10 +60,12 @@ npm publish --access public
 
 ```bash
 npm view vaneform-mcp version
-npx -y vaneform-mcp@0.1.3 vaneform --version
+npx -y --package=vaneform-mcp@0.1.3 vaneform --version
+npm exec -y --package=vaneform-mcp@0.1.3 -- vaneform --version
+npx -y vaneform-mcp@0.1.3
 ```
 
-The second command should print `0.1.3` and should not need `VANEFORM_API_KEY`. Then the README's "after npm publish" commands are live. The GitHub install (`npx -y github:vaneform/vaneform-mcp`) stays valid.
+The `--package` commands print `0.1.3` and do not need `VANEFORM_API_KEY`. The last command is the stdio server. The GitHub CLI install (`npx -p github:vaneform/vaneform-mcp vaneform --help`) stays valid, and `npx -y github:vaneform/vaneform-mcp` stays the stdio server.
 
 Optional, only after the package exists and you are logged in as its owner: on npmjs.com, add a GitHub Actions trusted publisher for `vaneform/vaneform-mcp`. A later change can add a workflow. This release does not add one.
 

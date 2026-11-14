@@ -50,11 +50,14 @@ Claude Desktop（本地代理，`claude_desktop_config.json`）：
 { "mcpServers": { "vaneform": { "command": "npx", "args": ["-y", "github:vaneform/vaneform-mcp"], "env": { "VANEFORM_API_KEY": "vf_live_…" } } } }
 ```
 
-命令行（npm 尚未发布，当前可用命令是 GitHub 安装；发布 `vaneform-mcp@0.1.3` 之后可用 `npx -y vaneform-mcp`）：
+这个包有两个命令。`npx` 会运行和包同名的 `vaneform-mcp`，那是 stdio 服务器，后面的词不会变成 CLI。stdio 在发布后是 `npx -y vaneform-mcp@0.1.3`。CLI 要用 `--package` 选中 `vaneform`。
 
 ```bash
 export VANEFORM_API_KEY=vf_live_…
 npx -p github:vaneform/vaneform-mcp vaneform notion.so
+# 发布之后：
+npx -y --package=vaneform-mcp@0.1.3 vaneform --version
+npm exec -y --package=vaneform-mcp@0.1.3 -- vaneform --version
 ```
 
 ## Agent Skill
@@ -65,7 +68,7 @@ npx -p github:vaneform/vaneform-mcp vaneform notion.so
 npx skills add vaneform/vaneform-mcp --skill website-traffic-lookup
 ```
 
-Skill 要求把流量数字写成第三方估算，注明月份和置信度，缺数据就说未知，调用前看剩余积分，60 积分的关键词和 200 积分的 `include=search` 必须先得到明确同意。拉取到的内容按不可信数据处理。文件里没有 API Key。
+Skill 要求把流量数字写成第三方估算，注明月份和置信度，缺数据就说未知，调用前看剩余积分。关键词未命中缓存最多 60 积分，`status: empty` 是 0 积分；`include=search` 最多 200 积分，24 小时内重复走同一笔收据。这两项必须先得到明确同意。拉取到的内容按不可信数据处理。文件里没有 API Key。安装名只有 `website-traffic-lookup`。需要放到别的目录时，手工复制 `SKILL.md`，不要改 `name`。
 
 ## 版本
 

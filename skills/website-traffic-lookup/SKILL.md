@@ -27,15 +27,17 @@ Preview the repo's skills without installing:
 npx skills add vaneform/vaneform-mcp --list
 ```
 
-https://vaneform.com/skill.md is a separate discovery document. It tells the reader to save that file as `vaneform-lookup`. That name is only the site document's filename. This repository does not contain a skill named `vaneform-lookup`, so `--skill vaneform-lookup` will not install this file. Do not rename this skill to match the site. If a previous setup copied the site file into a `vaneform-lookup` folder, leave that copy as API notes or replace it by installing this skill. The two files are not interchangeable.
+https://vaneform.com/skill.md is a separate discovery document. It tells the reader to save that file as `vaneform-lookup`. That name is only the site document's filename. This repository does not contain a skill named `vaneform-lookup`, so `--skill vaneform-lookup` will not install this file. The skills CLI used here has no flag that installs this skill under another name. Keep the canonical name `website-traffic-lookup`.
 
-Optional, only when an existing agent folder must keep the site filename: the skills CLI can install this one skill under another folder name (`--rename` rewrites the installed `name`). The canonical name in this repo stays `website-traffic-lookup`.
+If a previous setup copied the site file into a `vaneform-lookup` folder, leave that copy as API notes or replace the folder by installing this skill. The two files are not interchangeable. To put this skill in a chosen folder without the skills CLI, copy `SKILL.md` yourself and leave `name: website-traffic-lookup` unchanged:
 
 ```bash
-npx skills add vaneform/vaneform-mcp --skill website-traffic-lookup --rename vaneform-lookup
+mkdir -p .agents/skills/website-traffic-lookup
+curl -fsSL https://raw.githubusercontent.com/vaneform/vaneform-mcp/main/skills/website-traffic-lookup/SKILL.md \
+  -o .agents/skills/website-traffic-lookup/SKILL.md
 ```
 
-A copy without the skills CLI, for an agent that reads a skills folder:
+A copy for an agent that reads a user skills folder:
 
 ```bash
 mkdir -p ~/.claude/skills/website-traffic-lookup
@@ -58,7 +60,7 @@ Do not use it for private analytics or for exact counts.
 
 ## Workflow
 
-The hosted server is `https://vaneform.com/mcp` (Streamable HTTP). The `vaneform-mcp` package is a local stdio proxy: its tool list is the hosted `tools/list`, so names and descriptions stay with the server. Without MCP, the CLI is `npx -y github:vaneform/vaneform-mcp` until the npm package is published, then `npx -y vaneform-mcp`. Examples: `vaneform example.com`, `vaneform compare a.com b.com`, `vaneform tld name`.
+The hosted server is `https://vaneform.com/mcp` (Streamable HTTP). The `vaneform-mcp` package is a local stdio proxy: its tool list is the hosted `tools/list`, so names and descriptions stay with the server. The package also ships a separate `vaneform` CLI. npx runs the bin that matches the package name, which is the stdio server, and does not treat later words as a different bin. Stdio is `npx -y github:vaneform/vaneform-mcp` before publish and `npx -y vaneform-mcp@0.1.3` after it. The CLI is `npx -p github:vaneform/vaneform-mcp vaneform example.com` before publish, and `npx -y --package=vaneform-mcp@0.1.3 vaneform example.com` after it. `npm exec -y --package=vaneform-mcp@0.1.3 -- vaneform example.com` is the same CLI.
 
 `tools/list` is the contract for tool names, arguments, and the cost written in each tool description. The table matches the public API and the hosted tool descriptions as of 2026-11-14. If a live tool description disagrees with this file, follow the tool description and tell the user.
 
@@ -75,8 +77,8 @@ The hosted server is `https://vaneform.com/mcp` (Streamable HTTP). The `vaneform
 | `get_account` | 0 | Before a batch |
 | `lookup_domain` without `search` | 1 credit per new domain; repeat within 24h free | The user named that site |
 | `compare_bulk`, `compare_tld` | 1 credit per compared domain with data. Free up to 3 domains, Pro up to 30 | The user named those sites, and the balance covers them |
-| `lookup_keyword` (`q`) | Pro. Cache hit 0. A successful miss spends 60 credits. US/EN. At most 30 Google results | Only after the user explicitly agrees to spend up to 60 credits |
-| `lookup_domain` with `search` in `include` | Pro. Up to 200 credits when the saved ranking is ready or partial; 0 for that family when it is missing or error. The domain can still cost 1 | Only after the user explicitly agrees to spend up to 200 credits |
+| `lookup_keyword` (`q`) | Pro. Cache hit 0. `status: empty` has no rows and spends 0. A successful miss spends 60 credits. US/EN. At most 30 Google results | Only after the user explicitly agrees to spend up to 60 credits |
+| `lookup_domain` with `search` in `include` | Pro. Up to 200 credits when the saved ranking is ready or partial; 0 for that family when it is missing or error. A repeat inside 24 hours uses that receipt. The domain can still cost 1 | Only after the user explicitly agrees to spend up to 200 credits |
 
 Sixty credits is most of a Free month (100). Two hundred credits is more than a Free month. A question such as "what keywords does this site rank for?" is not consent. Say the credit cost, wait for an explicit yes, then call. Pro plans include 10,000 credits a month. Each key also allows 60 requests a minute and 5,000 a day; over that the server returns `lookup_rate_exceeded` and a Retry-After. Wait. Do not retry in a loop.
 
